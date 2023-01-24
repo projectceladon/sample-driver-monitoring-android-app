@@ -24,33 +24,127 @@
         xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/black"
         android:orientation="vertical">
 
 
         <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:tools="http://schemas.android.com/tools"
             android:id="@+id/container"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="2880px"
+            android:layout_height="1620px"
+            android:background="@android:color/black"
             tools:context="org.tensorflow.demo.CameraActivity" />
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
+            android:layout_height="50dp"
             android:layout_alignParentTop="true"
             android:background="@color/tfe_semi_transparent">
 
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/tfl2_logo" />
+            <Button
+                android:id="@+id/settings"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="right"
+                android:drawableLeft="@drawable/ic_order_white" />
         </androidx.appcompat.widget.Toolbar>
 
-    </RelativeLayout>
+        <TableLayout
+            android:id="@+id/results_table"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/toolbar"
+            android:layout_alignParentRight="true"
+            android:layout_toRightOf="@+id/container"
+            android:background="#00FFFFCC">
 
-    <include
-        android:id="@+id/bottom_sheet_layout"
-        layout="@layout/tfe_od_layout_bottom_sheet" />
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_column="1"
+                    android:text="Blinks" />
+
+                <TextView
+                    android:id="@+id/results_blinks"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_column="2"
+                    android:text="00" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_column="1"
+                    android:text="Yawns" />
+
+                <TextView
+                    android:id="@+id/results_yawns"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_column="2"
+                    android:text="00" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_column="1"
+                    android:layout_gravity="center_horizontal"
+                    android:text="Distractions%" />
+
+                <ProgressBar
+                    android:id="@+id/progress_distractions"
+                    style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                    android:layout_width="400px"
+                    android:layout_height="match_parent"
+                    android:max="100"
+                    android:progress="50"
+                    android:scaleY="20" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_column="1"
+                    android:layout_gravity="center_horizontal"
+                    android:text="Drowsiness%" />
+
+                <ProgressBar
+                    android:id="@+id/progress_drowsiness"
+                    style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                    android:layout_width="400px"
+                    android:layout_height="match_parent"
+                    android:max="100"
+                    android:progress="50"
+                    android:scaleY="20" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </TableLayout>
+
+        <include
+            android:id="@+id/bottom_sheet_layout"
+            layout="@layout/tfe_od_layout_bottom_sheet" />
+
+    </RelativeLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

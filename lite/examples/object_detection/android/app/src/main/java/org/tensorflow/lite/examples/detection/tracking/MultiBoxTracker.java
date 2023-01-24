@@ -33,7 +33,7 @@ import java.util.Queue;
 import org.tensorflow.lite.examples.detection.env.BorderedText;
 import org.tensorflow.lite.examples.detection.env.ImageUtils;
 import org.tensorflow.lite.examples.detection.env.Logger;
-import org.tensorflow.lite.examples.detection.tflite.Detector.Recognition;
+import org.tensorflow.lite.examples.detection.Classifier.Recognition;
 
 /** A tracker that handles non-max suppression and matches existing objects to new detections. */
 public class MultiBoxTracker {
@@ -149,8 +149,8 @@ public class MultiBoxTracker {
               : String.format("%.2f", (100 * recognition.detectionConfidence));
       //            borderedText.drawText(canvas, trackedPos.left + cornerSize, trackedPos.top,
       // labelString);
-      borderedText.drawText(
-          canvas, trackedPos.left + cornerSize, trackedPos.top, labelString + "%", boxPaint);
+//      borderedText.drawText(
+//          canvas, trackedPos.left + cornerSize, trackedPos.top, labelString + "%", boxPaint);
     }
   }
 

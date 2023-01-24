@@ -150,6 +150,7 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
   private void startCamera() {
     int index = getCameraId();
+    if (index < 0) return;
     camera = Camera.open(index);
 
     try {
