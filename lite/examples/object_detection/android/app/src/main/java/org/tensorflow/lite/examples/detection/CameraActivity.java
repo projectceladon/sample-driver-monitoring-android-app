@@ -61,12 +61,14 @@ import org.tensorflow.lite.examples.detection.env.Logger;
 public abstract class CameraActivity extends AppCompatActivity
     implements OnImageAvailableListener,
         Camera.PreviewCallback,
-        View.OnClickListener{
+        View.OnClickListener,
+        EditSettingsDialogFragment.EditSettingsDialogListener{
   private static final Logger LOGGER = new Logger();
 
   private static final int PERMISSIONS_REQUEST = 1;
 
   private static final String PERMISSION_CAMERA = Manifest.permission.CAMERA;
+  private static final String PERMISSION_INTERNET = Manifest.permission.INTERNET;//GRPC
   protected int previewWidth = 0;
   protected int previewHeight = 0;
   private boolean debug = false;
@@ -79,6 +81,8 @@ public abstract class CameraActivity extends AppCompatActivity
   private int yRowStride;
   private Runnable postInferenceCallback;
   private Runnable imageConverter;
+  protected String mIPText = "127.0.0.1";
+  protected String mPortText = "50059";
 
   private LinearLayout bottomSheetLayout;
   private BottomSheetBehavior<LinearLayout> sheetBehavior;
@@ -104,6 +108,14 @@ public abstract class CameraActivity extends AppCompatActivity
     }
 
     bottomSheetLayout = findViewById(R.id.bottom_sheet_layout);
+    //for settings
+    Button settingsButton = (Button) findViewById(R.id.settings);
+    settingsButton.setOnClickListener((View settingsview) -> {
+      showSettingsDialog();
+    });
+    SharedPreferences sharedPref = CameraActivity.this.getPreferences(Context.MODE_PRIVATE);
+    mIPText = sharedPref.getString(CameraActivity.this.getString(R.string.ip_text),mIPText);
+    mPortText = sharedPref.getString(CameraActivity.this.getString(R.string.port_text),mPortText);
 
     frameValueTextView = findViewById(R.id.frame_info);
     inferenceTimeTextView = findViewById(R.id.inference_info);
@@ -232,6 +244,29 @@ public abstract class CameraActivity extends AppCompatActivity
     Trace.endSection();
   }
 
+  private void showSettingsDialog() {
+    FragmentManager fm = getFragmentManager();
+    EditSettingsDialogFragment editSettingsDialogFragment = EditSettingsDialogFragment.newInstance(mIPText,mPortText);
+    // SETS the target fragment for use later when sending results
+    editSettingsDialogFragment.show(fm, "dialogue");
+  }
+
+  @Override
+  public void onFinishEditDialog(String ipText, String portText) {
+    mIPText = ipText;
+    mPortText = portText;
+    saveSettings();
+  }
+
+  private void saveSettings() {
+    SharedPreferences sharedPref = CameraActivity.this.getPreferences(Context.MODE_PRIVATE);
+    SharedPreferences.Editor editor = sharedPref.edit();
+    editor.putString(getString(R.string.ip_text),mIPText);
+    editor.putString(getString(R.string.port_text),mPortText);
+    editor.commit();
+    initChannel();
+  }
+
   @Override
   public synchronized void onStart() {
     LOGGER.d("onStart " + this);
@@ -306,7 +341,7 @@ public abstract class CameraActivity extends AppCompatActivity
 
   private boolean hasPermission() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-      return checkSelfPermission(PERMISSION_CAMERA) == PackageManager.PERMISSION_GRANTED;
+      return (checkSelfPermission(PERMISSION_CAMERA) == PackageManager.PERMISSION_GRANTED) && (checkSelfPermission(PERMISSION_INTERNET) == PackageManager.PERMISSION_GRANTED);//GRPC
     } else {
       return true;
     }
@@ -321,7 +356,14 @@ public abstract class CameraActivity extends AppCompatActivity
                 Toast.LENGTH_LONG)
             .show();
       }
-      requestPermissions(new String[] {PERMISSION_CAMERA}, PERMISSIONS_REQUEST);
+      if (shouldShowRequestPermissionRationale(PERMISSION_INTERNET)) {//GRPC
+        Toast.makeText(
+                CameraActivity.this,
+                "INTERNET permission is required for remote Inference in this demo",
+                Toast.LENGTH_LONG)
+                .show();
+      }
+      requestPermissions(new String[] {PERMISSION_CAMERA, PERMISSION_INTERNET}, PERMISSIONS_REQUEST);
     }
   }
 
@@ -445,8 +487,8 @@ public abstract class CameraActivity extends AppCompatActivity
     frameValueTextView.setText(frameInfo);
   }
 
-  protected void showInference(String inferenceTime) {
-    inferenceTimeTextView.setText(inferenceTime);
+  protected void showInference(double inferenceTime, int distractions, int drowsiness, int blinks, int yawns) {
+    inferenceTimeTextView.setText(Double.toString(inferenceTime));
   }
 
   protected abstract void processImage();
@@ -458,4 +500,6 @@ public abstract class CameraActivity extends AppCompatActivity
   protected abstract Size getDesiredPreviewFrameSize();
 
   protected abstract void setUseNNAPI(boolean isChecked);
+
+  protected abstract void initChannel();
 }

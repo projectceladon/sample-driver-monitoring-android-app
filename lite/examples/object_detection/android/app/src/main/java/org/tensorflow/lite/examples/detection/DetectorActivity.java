@@ -27,21 +27,45 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.SystemClock;
+import android.os.Trace;
+import android.text.TextUtils;
+import android.util.Log;
+import android.util.Patterns;
 import android.util.Size;
 import android.util.TypedValue;
 import android.widget.CompoundButton;
 import android.widget.Toast;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+
 import org.tensorflow.lite.examples.detection.customview.OverlayView;
 import org.tensorflow.lite.examples.detection.customview.OverlayView.DrawCallback;
 import org.tensorflow.lite.examples.detection.env.BorderedText;
 import org.tensorflow.lite.examples.detection.env.ImageUtils;
 import org.tensorflow.lite.examples.detection.env.Logger;
-import org.tensorflow.lite.examples.detection.tflite.Detector;
-import org.tensorflow.lite.examples.detection.tflite.TFLiteObjectDetectionAPIModel;
 import org.tensorflow.lite.examples.detection.tracking.MultiBoxTracker;
+
+//[[ GRPC
+import io.grpc.ConnectivityState;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+
+import com.google.protobuf.ByteString;
+import com.intel.examples.objectDetection.DetectionGrpc;
+import com.intel.examples.objectDetection.PredictionOrBuilder;
+import com.intel.examples.objectDetection.ReplyStatus;
+import com.intel.examples.objectDetection.RequestBytes;
+import com.intel.examples.objectDetection.Prediction;
+import com.intel.examples.objectDetection.RequestString;
+//]] GRPC
 
 /**
  * An activity that uses a TensorFlowMultiBoxDetector and ObjectTracker to detect and then track
@@ -52,20 +76,20 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
   // Configuration values for the prepackaged SSD model.
   private static final int TF_OD_API_INPUT_SIZE = 300;
-  private static final boolean TF_OD_API_IS_QUANTIZED = true;
-  private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
-  private static final String TF_OD_API_LABELS_FILE = "labelmap.txt";
   private static final DetectorMode MODE = DetectorMode.TF_OD_API;
+  private static final String TAG = "DetectorActivity";
+  private static final float SCORE_THRESHOLD = 0.49f; //MINIMUM_CONFIDENCE_TF_OD_API - 0.01
+  ManagedChannel mChannel = null; //GRPC
+  HashMap<String, ManagedChannel> mChannelMap
+          = new HashMap<>();
   // Minimum detection confidence to track a detection.
   private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
   private static final boolean MAINTAIN_ASPECT = false;
-  private static final Size DESIRED_PREVIEW_SIZE = new Size(640, 480);
+  private static final Size DESIRED_PREVIEW_SIZE = new Size(1280, 720);
   private static final boolean SAVE_PREVIEW_BITMAP = false;
   private static final float TEXT_SIZE_DIP = 10;
   OverlayView trackingOverlay;
   private Integer sensorOrientation;
-
-  private Detector detector;
 
   private long lastProcessingTimeMs;
   private Bitmap rgbFrameBitmap = null;
@@ -94,25 +118,6 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     tracker = new MultiBoxTracker(this);
 
     int cropSize = TF_OD_API_INPUT_SIZE;
-
-    try {
-      detector =
-          TFLiteObjectDetectionAPIModel.create(
-              this,
-              TF_OD_API_MODEL_FILE,
-              TF_OD_API_LABELS_FILE,
-              TF_OD_API_INPUT_SIZE,
-              TF_OD_API_IS_QUANTIZED);
-      cropSize = TF_OD_API_INPUT_SIZE;
-    } catch (final IOException e) {
-      e.printStackTrace();
-      LOGGER.e(e, "Exception initializing Detector!");
-      Toast toast =
-          Toast.makeText(
-              getApplicationContext(), "Detector could not be initialized", Toast.LENGTH_SHORT);
-      toast.show();
-      finish();
-    }
 
     previewWidth = size.getWidth();
     previewHeight = size.getHeight();
@@ -146,7 +151,154 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
         });
 
     tracker.setFrameConfiguration(previewWidth, previewHeight, sensorOrientation);
+
+    //[[ GRPC
+    initChannel();
+
+    //]] GRPC
   }
+
+  @Override
+  protected void initChannel() {
+    String grpcAddr = mIPText;
+    String grpcPort = mPortText;
+
+    String channelKey = (grpcAddr+grpcPort).trim();
+    if(mChannelMap.containsKey(channelKey)) {
+      mChannel = mChannelMap.get(channelKey);
+    } else {
+      mChannel = null;
+    }
+
+    if(mChannel != null) {
+      ConnectivityState cState = mChannel.getState(true);
+      Log.d(TAG, "A gRPC channel is already available, state : " + cState.toString());
+      if(cState != ConnectivityState.READY) {
+        Log.i(TAG, "gRPC channel not READY : Shutdown");
+        mChannel.shutdown();
+        mChannel = null;
+        mChannelMap.remove(channelKey);
+      }
+    }
+    if (mChannel == null) {
+      Log.i(TAG, String.format("Creating gRPC channel IP:Port - %s:%s", grpcAddr, grpcPort));
+      if (!Patterns.IP_ADDRESS.matcher(grpcAddr).matches() || !TextUtils.isDigitsOnly(grpcPort)) {
+        Toast.makeText(
+                DetectorActivity.this,
+                "Invalid IP:Port provided!",
+                Toast.LENGTH_LONG)
+                .show();
+        Log.e(TAG, String.format("Invalid IP:Port provided for gRPC - %s:%s", grpcAddr, grpcPort));
+        return;
+      }
+      mChannel = initGrpc(grpcAddr, grpcPort);
+    }
+  }
+
+  //[[ GRPC
+  private ManagedChannel initGrpc(String host, String portStr) {
+    ManagedChannel channel = null;
+    String channelKey = (host+portStr).trim();
+    int port = Integer.valueOf(portStr);
+    DetectionGrpc.DetectionBlockingStub stub = null;
+    try {
+      channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+      mChannelMap.put(channelKey, channel);
+      ConnectivityState t = channel.getState(true);
+      Log.i(TAG, "gRPC Channel state : " + t.toString());
+    } catch (Exception e) {
+      StringWriter sw = new StringWriter();
+      PrintWriter pw = new PrintWriter(sw);
+      e.printStackTrace(pw);
+      pw.flush();
+      Log.i(TAG, "gRPC channel exception: \n" + String.format("Failed... : %n%s", sw));
+    }
+    return channel;
+  }
+
+  public Classifier.Recognition getRecognitions(Prediction prediction) {
+    Trace.beginSection("getRecognitions");
+    float left = prediction.getX();
+    float right = left+ prediction.getWidth();
+    float top = prediction.getY();
+    float bottom = top + prediction.getHeight();
+    Log.i(TAG, "remoteInfer ObjectDetection RectangleCoords: " +
+            "Left: " + left +
+            "Right: " + right +
+            "Top: " + top +
+            "Bottom: " + bottom
+    );
+        final RectF detection =
+                new RectF(left, top, right, bottom);
+
+        Classifier.Recognition r = new Classifier.Recognition(
+                "" + 1,
+                "SampleDetection",
+                0.9f,
+                detection);
+    Trace.endSection(); // "getRecognitions"
+    return r;
+  }
+
+  private Classifier.Recognition remoteInfer(Bitmap image) {
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    image.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+
+    ByteString imgBytes = ByteString.copyFrom(stream.toByteArray());
+    try {
+      Log.i(TAG, "remoteInfer ObjectDetection imgBytes Size: " + imgBytes.size());
+      Log.i(TAG, "remoteInfer gRPC Channel state : " + mChannel.getState(true).toString());
+      if(mChannel.getState(true) != ConnectivityState.READY) {
+        runOnUiThread(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                      showInference(0, 0, 0, 0, 0);
+                  }
+                });
+        return null;
+      }
+      RequestBytes request = RequestBytes.newBuilder().setData(imgBytes).build();
+      DetectionGrpc.DetectionBlockingStub stub = DetectionGrpc.newBlockingStub(mChannel);
+      RequestString requestStr =  RequestString.newBuilder().setValue("").build();
+      long startTime = SystemClock.uptimeMillis();
+      ReplyStatus frameStatus = stub.sendFrame(request);
+      Prediction prediction = stub.getPredictions(requestStr);
+      long duration = SystemClock.uptimeMillis() - startTime;
+      Log.i(TAG, "remoteInfer ObjectDetection gRPC Inference time: " + duration);
+
+      runOnUiThread(
+              new Runnable() {
+                @Override
+                public void run() {
+                  showFrameInfo(previewWidth + "x" + previewHeight);
+                  if (!prediction.getIsValid()) {
+                    showInference(0, 0, 0, 0, 0);
+                  }
+                  showInference(
+                          prediction.getInferenceTime(),
+                          (int) prediction.getTDistraction(),
+                          (int) prediction.getTDrowsiness(),
+                          prediction.getBlinkTotal(),
+                          prediction.getYawnTotal());
+                }
+              });
+      if (!prediction.getIsValid()) {
+        Log.i(TAG, "remoteInfer ObjectDetection gRPC Invalid data ");
+        return null;
+      }
+
+      return getRecognitions(prediction);
+    } catch (Exception e) {
+      StringWriter sw = new StringWriter();
+      PrintWriter pw = new PrintWriter(sw);
+      e.printStackTrace(pw);
+      pw.flush();
+      Log.i(TAG, "gRPC stub exception: \n" + String.format("Failed... : %n%s", sw));
+    }
+    return null;
+  }
+//]] GRPC
 
   @Override
   protected void processImage() {
@@ -177,10 +329,15 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
         new Runnable() {
           @Override
           public void run() {
-            LOGGER.i("Running detection on image " + currTimestamp);
-            final long startTime = SystemClock.uptimeMillis();
-            Classifier.Recognition result = null;
+            LOGGER.i("Running detection on image " + rgbFrameBitmap.getHeight() + "p at: " + currTimestamp);
+            long startTime = SystemClock.uptimeMillis();
+            Classifier.Recognition result = remoteInfer(rgbFrameBitmap);
+            if (result == null) { // Fallback to local Inference
+              Log.e(TAG, "remoteInfer Failed, Fallback");
+              startTime = SystemClock.uptimeMillis();
+            }
             lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
+            Log.i(TAG, "TFlite UI lastProcessingTimeMs " + lastProcessingTimeMs);
 
             cropCopyBitmap = Bitmap.createBitmap(croppedBitmap);
             final Canvas canvas = new Canvas(cropCopyBitmap);
@@ -198,7 +355,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
             final List<Classifier.Recognition> mappedRecognitions = new ArrayList<Classifier.Recognition>();
 
-            if(result != null){
+            if (result != null) {
               final RectF location = result.getLocation();
               if (location != null && result.getConfidence() >= minimumConfidence) {
                 canvas.drawRect(location, paint);
@@ -212,6 +369,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             trackingOverlay.postInvalidate();
 
             computingDetection = false;
+
           }
         });
   }
@@ -236,4 +394,6 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   @Override
   protected void setUseNNAPI(final boolean isChecked) {
   }
+
 }
+
