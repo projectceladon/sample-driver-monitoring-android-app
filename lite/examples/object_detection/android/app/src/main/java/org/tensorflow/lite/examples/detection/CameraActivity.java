@@ -51,10 +51,13 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import java.nio.ByteBuffer;
+import java.util.Random;
+
 import org.tensorflow.lite.examples.detection.env.ImageUtils;
 import org.tensorflow.lite.examples.detection.env.Logger;
 
@@ -87,8 +90,11 @@ public abstract class CameraActivity extends AppCompatActivity
   private LinearLayout bottomSheetLayout;
   private BottomSheetBehavior<LinearLayout> sheetBehavior;
 
-  protected TextView frameValueTextView, inferenceTimeTextView;
+  protected TextView frameValueTextView, inferenceTimeTextView, yawnsTextView, blinksTextView;
   private TextView threadsTextView;
+
+  protected ProgressBar distractionsProgressBar;
+  protected ProgressBar drowsinessProgressBar;
 
   @Override
   protected void onCreate(final Bundle savedInstanceState) {
@@ -120,6 +126,10 @@ public abstract class CameraActivity extends AppCompatActivity
     frameValueTextView = findViewById(R.id.frame_info);
     inferenceTimeTextView = findViewById(R.id.inference_info);
 
+    blinksTextView = findViewById(R.id.results_blinks);
+    yawnsTextView = findViewById(R.id.results_yawns);
+    distractionsProgressBar = (ProgressBar)findViewById(R.id.progress_distractions);
+    drowsinessProgressBar = (ProgressBar)findViewById(R.id.progress_drowsiness);
   }
 
   protected int[] getRgbBytes() {
@@ -489,6 +499,20 @@ public abstract class CameraActivity extends AppCompatActivity
 
   protected void showInference(double inferenceTime, int distractions, int drowsiness, int blinks, int yawns) {
     inferenceTimeTextView.setText(Double.toString(inferenceTime));
+    blinksTextView.setText(Long.toString(blinks));
+    yawnsTextView.setText(Long.toString(yawns));
+    if(distractions > 30) {
+      distractionsProgressBar.getProgressDrawable().setColorFilter(Color.RED, PorterDuff.Mode.SRC_IN);
+    } else {
+      distractionsProgressBar.getProgressDrawable().setColorFilter(Color.GREEN, PorterDuff.Mode.SRC_IN);
+    }
+    if(drowsiness > 30) {
+      drowsinessProgressBar.getProgressDrawable().setColorFilter(Color.RED, PorterDuff.Mode.SRC_IN);
+    } else {
+      drowsinessProgressBar.getProgressDrawable().setColorFilter(Color.GREEN, PorterDuff.Mode.SRC_IN);
+    }
+    distractionsProgressBar.setProgress(distractions);
+    drowsinessProgressBar.setProgress(drowsiness);
   }
 
   protected abstract void processImage();

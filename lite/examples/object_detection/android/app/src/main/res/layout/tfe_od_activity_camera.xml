@@ -30,8 +30,8 @@
         <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:tools="http://schemas.android.com/tools"
             android:id="@+id/container"
-            android:layout_width="2880px"
-            android:layout_height="1620px"
+            android:layout_width="1800dp"
+            android:layout_height="1150dp"
             android:background="@android:color/black"
             tools:context="org.tensorflow.demo.CameraActivity" />
 
@@ -52,38 +52,41 @@
 
         <TableLayout
             android:id="@+id/results_table"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_below="@id/toolbar"
+            android:layout_marginTop="50dp"
             android:layout_alignParentRight="true"
             android:layout_toRightOf="@+id/container"
+            android:layout_marginLeft="10dp"
             android:background="#00FFFFCC">
 
             <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
 
                 <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_column="1"
                     android:text="Blinks" />
 
                 <TextView
                     android:id="@+id/results_blinks"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_column="2"
+                    android:layout_marginLeft="50dp"
                     android:text="00" />
             </TableRow>
 
             <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
 
                 <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_column="1"
                     android:text="Yawns" />
 
@@ -92,16 +95,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_column="2"
+                    android:layout_marginLeft="50dp"
                     android:text="00" />
             </TableRow>
 
             <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp">
 
                 <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:layout_column="1"
                     android:layout_gravity="center_horizontal"
                     android:text="Distractions%" />
@@ -109,8 +114,9 @@
                 <ProgressBar
                     android:id="@+id/progress_distractions"
                     style="@style/Widget.AppCompat.ProgressBar.Horizontal"
-                    android:layout_width="400px"
+                    android:layout_width="400dp"
                     android:layout_height="match_parent"
+                    android:layout_marginLeft="50dp"
                     android:max="100"
                     android:progress="50"
                     android:scaleY="20" />
@@ -118,7 +124,8 @@
 
             <TableRow
                 android:layout_width="match_parent"
-                android:layout_height="match_parent">
+                android:layout_height="match_parent"
+                android:layout_marginTop="20dp">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -134,6 +141,7 @@
                     android:layout_height="match_parent"
                     android:max="100"
                     android:progress="50"
+                    android:layout_marginLeft="50dp"
                     android:scaleY="20" />
             </TableRow>
 

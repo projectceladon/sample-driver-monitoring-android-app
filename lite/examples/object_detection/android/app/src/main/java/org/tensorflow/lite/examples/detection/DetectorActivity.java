@@ -222,7 +222,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     float right = left+ prediction.getWidth();
     float top = prediction.getY();
     float bottom = top + prediction.getHeight();
-    Log.i(TAG, "remoteInfer ObjectDetection RectangleCoords: " +
+    Log.i(TAG, "remoteInfer ObjectDetection RectangleCords: " +
             "Left: " + left +
             "Right: " + right +
             "Top: " + top +
