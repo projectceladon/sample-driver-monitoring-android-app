@@ -33,7 +33,6 @@ import android.util.Log;
 import android.util.Patterns;
 import android.util.Size;
 import android.util.TypedValue;
-import android.widget.CompoundButton;
 import android.widget.Toast;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -334,6 +333,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             Classifier.Recognition result = remoteInfer(rgbFrameBitmap);
             if (result == null) { // Fallback to local Inference
               Log.e(TAG, "remoteInfer Failed, Fallback");
+              stoppedInference();
               startTime = SystemClock.uptimeMillis();
             }
             lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;

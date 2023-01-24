@@ -30,10 +30,12 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.AudioManager;
 import android.media.Image;
 import android.media.Image.Plane;
 import android.media.ImageReader;
 import android.media.ImageReader.OnImageAvailableListener;
+import android.media.ToneGenerator;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -95,6 +97,10 @@ public abstract class CameraActivity extends AppCompatActivity
 
   protected ProgressBar distractionsProgressBar;
   protected ProgressBar drowsinessProgressBar;
+  ToneGenerator toneG;
+  boolean playTone = false;
+  Thread toneThread;
+
 
   @Override
   protected void onCreate(final Bundle savedInstanceState) {
@@ -102,6 +108,8 @@ public abstract class CameraActivity extends AppCompatActivity
     super.onCreate(null);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+    toneG = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+    initToneThread();
     setContentView(R.layout.tfe_od_activity_camera);
     Toolbar toolbar = findViewById(R.id.toolbar);
     setSupportActionBar(toolbar);
@@ -296,6 +304,9 @@ public abstract class CameraActivity extends AppCompatActivity
   @Override
   public synchronized void onPause() {
     LOGGER.d("onPause " + this);
+    stoppedInference();
+    toneThread.interrupt();
+    toneG.stopTone();
 
     handlerThread.quitSafely();
     try {
@@ -312,6 +323,7 @@ public abstract class CameraActivity extends AppCompatActivity
   @Override
   public synchronized void onStop() {
     LOGGER.d("onStop " + this);
+    stoppedInference();
     super.onStop();
   }
 
@@ -493,6 +505,9 @@ public abstract class CameraActivity extends AppCompatActivity
   public void onClick(View v) {
   }
 
+  protected  void stoppedInference() {
+    playTone = false;
+  }
   protected void showFrameInfo(String frameInfo) {
     frameValueTextView.setText(frameInfo);
   }
@@ -513,6 +528,49 @@ public abstract class CameraActivity extends AppCompatActivity
     }
     distractionsProgressBar.setProgress(distractions);
     drowsinessProgressBar.setProgress(drowsiness);
+    synchronized (toneG) {
+      if (distractions > 50 || drowsiness > 50) {
+        if(!playTone) {
+          playTone = true;
+          toneG.notifyAll();
+        }
+      } else {
+        playTone = false;
+      }
+    }
+  }
+
+  void initToneThread() {
+    toneThread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        while (!Thread.interrupted()) {
+          synchronized (toneG) {
+            try {
+              toneG.wait();
+              if (playTone) {
+                LOGGER.d("Starting WARNING TONE ");
+                while (playTone) {
+                  toneG.startTone(ToneGenerator.TONE_SUP_INTERCEPT, 1100);
+                  try {
+                    toneG.wait(1000);
+                  } catch (InterruptedException e) {
+                    e.printStackTrace();
+                  }
+                  toneG.stopTone();
+                }
+                LOGGER.d("Stopped WARNING TONE ");
+              }
+            } catch (InterruptedException e) {
+              e.printStackTrace();
+            }
+          }
+        }
+        toneG.stopTone();// Stopping any tone during interrupt
+        LOGGER.d("Ending WARNING TONE thread");
+      }
+    });
+    toneThread.start();
   }
 
   protected abstract void processImage();
