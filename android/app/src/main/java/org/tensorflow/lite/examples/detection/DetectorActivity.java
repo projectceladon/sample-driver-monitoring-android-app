@@ -34,6 +34,7 @@ import android.util.Patterns;
 import android.util.Size;
 import android.util.TypedValue;
 import android.widget.Toast;
+import io.grpc.Status;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -261,7 +262,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
       DetectionGrpc.DetectionBlockingStub stub = DetectionGrpc.newBlockingStub(mChannel);
       RequestString requestStr =  RequestString.newBuilder().setValue("").build();
       long startTime = SystemClock.uptimeMillis();
-      ReplyStatus frameStatus = stub.sendFrame(request);
+      stub.sendFrame(request);
       Prediction prediction = stub.getPredictions(requestStr);
       long duration = SystemClock.uptimeMillis() - startTime;
       Log.i(TAG, "remoteInfer dms gRPC Inference time: " + duration);

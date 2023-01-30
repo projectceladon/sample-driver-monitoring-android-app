@@ -57,7 +57,11 @@ public class ImageUtils {
         final String fname = filename;
         final File file = new File(myDir, fname);
         if (file.exists()) {
-            file.delete();
+            try {
+              file.delete();
+	    } catch (Exception e) {
+              Log.i(TAG, "saveBitmap: failed to delete file: " + filename);
+	    }
         }
         try {
             final FileOutputStream out = new FileOutputStream(file);

@@ -89,11 +89,7 @@ public abstract class CameraActivity extends AppCompatActivity
   protected String mIPText = "127.0.0.1";
   protected String mPortText = "50059";
 
-  private LinearLayout bottomSheetLayout;
-  private BottomSheetBehavior<LinearLayout> sheetBehavior;
-
   protected TextView frameValueTextView, inferenceTimeTextView, yawnsTextView, blinksTextView;
-  private TextView threadsTextView;
 
   protected ProgressBar distractionsProgressBar;
   protected ProgressBar drowsinessProgressBar;
@@ -121,7 +117,6 @@ public abstract class CameraActivity extends AppCompatActivity
       requestPermission();
     }
 
-    bottomSheetLayout = findViewById(R.id.bottom_sheet_layout);
     //for settings
     Button settingsButton = (Button) findViewById(R.id.settings);
     settingsButton.setOnClickListener((View settingsview) -> {
@@ -165,10 +160,12 @@ public abstract class CameraActivity extends AppCompatActivity
       // Initialize the storage bitmaps once when the resolution is known.
       if (rgbBytes == null) {
         Camera.Size previewSize = camera.getParameters().getPreviewSize();
-        previewHeight = previewSize.height;
-        previewWidth = previewSize.width;
-        rgbBytes = new int[previewWidth * previewHeight];
-        onPreviewSizeChosen(new Size(previewSize.width, previewSize.height), 90);
+          if (previewSize != null) {
+            previewHeight = previewSize.height;
+            previewWidth = previewSize.width;
+            rgbBytes = new int[previewWidth * previewHeight];
+            onPreviewSizeChosen(new Size(previewSize.width, previewSize.height), 90);
+          }
       }
     } catch (final Exception e) {
       LOGGER.e(e, "Exception!");
@@ -297,8 +294,12 @@ public abstract class CameraActivity extends AppCompatActivity
     super.onResume();
 
     handlerThread = new HandlerThread("inference");
-    handlerThread.start();
-    handler = new Handler(handlerThread.getLooper());
+    if (handlerThread != null) {
+        handlerThread.start();
+        if (handlerThread.getLooper() != null) {
+            handler = new Handler(handlerThread.getLooper());
+        }
+    }
   }
 
   @Override
@@ -506,7 +507,9 @@ public abstract class CameraActivity extends AppCompatActivity
   }
 
   protected  void stoppedInference() {
-    playTone = false;
+    synchronized (toneG) {
+      playTone = false;
+    }
   }
   protected void showFrameInfo(String frameInfo) {
     frameValueTextView.setText(frameInfo);

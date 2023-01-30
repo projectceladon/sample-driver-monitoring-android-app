@@ -161,6 +161,10 @@ public class LegacyCameraConnectionFragment extends Fragment {
         parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
       }
       List<Camera.Size> cameraSizes = parameters.getSupportedPreviewSizes();
+      if (cameraSizes == null) {
+        LOGGER.e("startCamera cameraSizes is null");
+        return;
+      }
       Size[] sizes = new Size[cameraSizes.size()];
       int i = 0;
       for (Camera.Size size : cameraSizes) {
@@ -179,6 +183,10 @@ public class LegacyCameraConnectionFragment extends Fragment {
 
     camera.setPreviewCallbackWithBuffer(imageListener);
     Camera.Size s = camera.getParameters().getPreviewSize();
+    if (s == null) {
+        LOGGER.e("startCamera preview size is null");
+        return;
+    }
     camera.addCallbackBuffer(new byte[ImageUtils.getYUVByteSize(s.height, s.width)]);
 
     textureView.setAspectRatio(s.height, s.width);

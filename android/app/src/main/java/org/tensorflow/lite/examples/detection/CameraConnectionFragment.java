@@ -319,12 +319,21 @@ public class CameraConnectionFragment extends Fragment {
   /** Sets up member variables related to camera. */
   private void setUpCameraOutputs() {
     final Activity activity = getActivity();
+    if (activity == null) {
+        LOGGER.e("setUpCameraOutputs activity is null object!");
+        return;
+    }
+
     final CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
     try {
       final CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
 
       final StreamConfigurationMap map =
           characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+      if (map == null) {
+          LOGGER.e("setUpCameraOutputs map is null object!");
+          return;
+      }
 
       sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
 
@@ -362,6 +371,11 @@ public class CameraConnectionFragment extends Fragment {
     setUpCameraOutputs();
     configureTransform(width, height);
     final Activity activity = getActivity();
+    if (activity == null) {
+        LOGGER.e("openCamera activity is null object!");
+        return;
+    }
+
     final CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
     try {
       if (!cameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
@@ -401,8 +415,14 @@ public class CameraConnectionFragment extends Fragment {
   /** Starts a background thread and its {@link Handler}. */
   private void startBackgroundThread() {
     backgroundThread = new HandlerThread("ImageListener");
-    backgroundThread.start();
-    backgroundHandler = new Handler(backgroundThread.getLooper());
+    if (backgroundThread != null) {
+        backgroundThread.start();
+        if (backgroundThread.getLooper() != null) {
+            backgroundHandler = new Handler(backgroundThread.getLooper());
+        }
+    } else {
+        LOGGER.e("startBackgroundThread HandlerThread object is null!");
+    }
   }
 
   /** Stops the background thread and its {@link Handler}. */

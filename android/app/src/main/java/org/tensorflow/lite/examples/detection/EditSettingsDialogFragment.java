@@ -67,8 +67,11 @@ public class EditSettingsDialogFragment extends DialogFragment implements View.O
 
 //            EditSettingsDialogListener listener = (EditSettingsDialogListener) getTargetFragment();
             EditSettingsDialogListener listener = (EditSettingsDialogListener) getActivity();
-            listener.onFinishEditDialog(mEditIP,mEditPort);
-            // Close the dialog and return back to the parent activity
+            if (listener != null) {
+                listener.onFinishEditDialog(mEditIP,mEditPort);
+                // Close the dialog and return back to the parent activity
+            }
+
             dismiss();
 //            ((MainActivity) getActivity()).getSupportFragmentManager().beginTransaction().replace(R.id.content_frame, new DetectionFragment()).addToBackStack(null).commit();
         }
