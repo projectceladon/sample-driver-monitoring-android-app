@@ -95,6 +95,7 @@ public abstract class CameraActivity extends AppCompatActivity
   protected ProgressBar drowsinessProgressBar;
   ToneGenerator toneG;
   boolean playTone = false;
+  boolean toneThreadActive = false;
   Thread toneThread;
 
 
@@ -105,7 +106,6 @@ public abstract class CameraActivity extends AppCompatActivity
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
     toneG = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
-    initToneThread();
     setContentView(R.layout.tfe_od_activity_camera);
     Toolbar toolbar = findViewById(R.id.toolbar);
     setSupportActionBar(toolbar);
@@ -292,6 +292,7 @@ public abstract class CameraActivity extends AppCompatActivity
   public synchronized void onResume() {
     LOGGER.d("onResume " + this);
     super.onResume();
+    initToneThread();
 
     handlerThread = new HandlerThread("inference");
     if (handlerThread != null) {
@@ -306,8 +307,10 @@ public abstract class CameraActivity extends AppCompatActivity
   public synchronized void onPause() {
     LOGGER.d("onPause " + this);
     stoppedInference();
-    toneThread.interrupt();
-    toneG.stopTone();
+    toneThreadActive = false;
+    synchronized (toneG) {
+      toneG.notifyAll();
+    }
 
     handlerThread.quitSafely();
     try {
@@ -547,8 +550,9 @@ public abstract class CameraActivity extends AppCompatActivity
     toneThread = new Thread(new Runnable() {
       @Override
       public void run() {
-        while (!Thread.interrupted()) {
-          synchronized (toneG) {
+        LOGGER.d("Starting WARNING TONE thread");
+        synchronized (toneG) {
+          while (toneThreadActive) {
             try {
               toneG.wait();
               if (playTone) {
@@ -558,7 +562,7 @@ public abstract class CameraActivity extends AppCompatActivity
                   try {
                     toneG.wait(1000);
                   } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    LOGGER.d("WARNING TONE thread Interrupted");
                   }
                   toneG.stopTone();
                 }
@@ -573,6 +577,7 @@ public abstract class CameraActivity extends AppCompatActivity
         LOGGER.d("Ending WARNING TONE thread");
       }
     });
+    toneThreadActive = true;
     toneThread.start();
   }
 
