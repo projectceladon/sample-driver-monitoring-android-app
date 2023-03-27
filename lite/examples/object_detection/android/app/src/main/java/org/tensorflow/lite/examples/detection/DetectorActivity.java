@@ -38,8 +38,8 @@ import org.tensorflow.lite.examples.detection.customview.OverlayView.DrawCallbac
 import org.tensorflow.lite.examples.detection.env.BorderedText;
 import org.tensorflow.lite.examples.detection.env.ImageUtils;
 import org.tensorflow.lite.examples.detection.env.Logger;
-import org.tensorflow.lite.examples.detection.tflite.Detector;
-import org.tensorflow.lite.examples.detection.tflite.TFLiteObjectDetectionAPIModel;
+import org.tensorflow.lite.examples.detection.Classifier;
+import org.tensorflow.lite.examples.detection.TFLiteObjectDetectionAPIModel;
 import org.tensorflow.lite.examples.detection.tracking.MultiBoxTracker;
 
 /**
@@ -51,9 +51,9 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
   // Configuration values for the prepackaged SSD model.
   private static final int TF_OD_API_INPUT_SIZE = 300;
-  private static final boolean TF_OD_API_IS_QUANTIZED = true;
-  private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
-  private static final String TF_OD_API_LABELS_FILE = "labelmap.txt";
+  private static final boolean TF_OD_API_IS_QUANTIZED = false;
+  private static final String TF_OD_API_MODEL_FILE = "mobilenet_ssd.tflite";
+  private static final String TF_OD_API_LABELS_FILE = "file:///android_asset/coco_labels_list.txt";
   private static final DetectorMode MODE = DetectorMode.TF_OD_API;
   // Minimum detection confidence to track a detection.
   private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
@@ -64,7 +64,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   OverlayView trackingOverlay;
   private Integer sensorOrientation;
 
-  private Detector detector;
+  private Classifier detector;
 
   private long lastProcessingTimeMs;
   private Bitmap rgbFrameBitmap = null;
@@ -97,11 +97,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     try {
       detector =
           TFLiteObjectDetectionAPIModel.create(
-              this,
+                  getAssets(),
               TF_OD_API_MODEL_FILE,
               TF_OD_API_LABELS_FILE,
-              TF_OD_API_INPUT_SIZE,
-              TF_OD_API_IS_QUANTIZED);
+              TF_OD_API_INPUT_SIZE);
       cropSize = TF_OD_API_INPUT_SIZE;
     } catch (final IOException e) {
       e.printStackTrace();
@@ -178,7 +177,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
           public void run() {
             LOGGER.i("Running detection on image " + currTimestamp);
             final long startTime = SystemClock.uptimeMillis();
-            final List<Detector.Recognition> results = detector.recognizeImage(croppedBitmap);
+            final List<Classifier.Recognition> results = detector.recognizeImage(croppedBitmap);
             lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
 
             cropCopyBitmap = Bitmap.createBitmap(croppedBitmap);
@@ -195,10 +194,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 break;
             }
 
-            final List<Detector.Recognition> mappedRecognitions =
-                new ArrayList<Detector.Recognition>();
+            final List<Classifier.Recognition> mappedRecognitions =
+                new ArrayList<Classifier.Recognition>();
 
-            for (final Detector.Recognition result : results) {
+            for (final Classifier.Recognition result : results) {
               final RectF location = result.getLocation();
               if (location != null && result.getConfidence() >= minimumConfidence) {
                 canvas.drawRect(location, paint);
@@ -249,7 +248,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     runInBackground(
         () -> {
           try {
-            detector.setUseNNAPI(isChecked);
+            detector.getInterpreter().setUseNNAPI(isChecked);
           } catch (UnsupportedOperationException e) {
             LOGGER.e(e, "Failed to set \"Use NNAPI\".");
             runOnUiThread(
@@ -265,7 +264,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
     runInBackground(
         () -> {
           try {
-            detector.setNumThreads(numThreads);
+            detector.getInterpreter().setNumThreads(numThreads);
           } catch (IllegalArgumentException e) {
             LOGGER.e(e, "Failed to set multithreads.");
             runOnUiThread(

@@ -1,7 +1,19 @@
-task downloadModelFile(type: Download) {
-    src 'https://tfhub.dev/tensorflow/lite-model/ssd_mobilenet_v1/1/metadata/2?lite-format=tflite'
-    dest project.ext.ASSET_DIR + '/detect.tflite'
+task downloadFile(type: Download) {
+    src 'https://storage.googleapis.com/download.tensorflow.org/models/tflite/mobilenet_ssd_tflite_v1.zip'
+    dest new File(project.ext.TMP_DIR + '/' + 'mobilenet_ssd_tflite_v1.zip')
     overwrite false
 }
+task extractModels(type: Copy) {
+    def localFile = 'mobilenet_ssd_tflite_v1.zip'
 
-preBuild.dependsOn downloadModelFile
+    from zipTree(project.ext.TMP_DIR + '/' + localFile)
+    into file(project.ext.ASSET_DIR)
+    fileMode  0644
+    exclude '**/LICENSE'
+
+    if (!(new File(project.ext.TMP_DIR + '/' + localFile)).exists()) {
+        dependsOn downloadFile
+    }
+}
+
+preBuild.dependsOn extractModels
